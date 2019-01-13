@@ -27,9 +27,52 @@
 		<ul>
 			<li>Image data is stored as "FZI" (unknown) file format, of variable length, within the .DAT files. They possess accompanying 8-byte "CZI" (also unknown) files of the same 'name.' Unclear if this is a name assigned by GameExtractor upon read.</li>
 			<li>VBinDiff reveals exactly 42 bytes appear to be the same across the beginning of each file, with minor 8 to 16 byte differences between them, and the file <em>always</em> beginning at the exact same point: 29h offset, or 41 offset decimal.  The final byte of the header is always <code>0xF8</code>, and the first 8 bytes are always <code>07 01 00 00 00 00 08 00</code>.</li>
-			<li>The files are segmented, with 22 byte segments delimited by the byte <code>0xE0</code>.</li>
+			<li>The files are segmented, with arbitrary-length byte segments delimited by the byte value <code>0xE0</code>.</li>
 		</ul>
 		<h3>Updates</h3>
+		<div class="incremental-update">
+			<h4>Greasy python - 12 Jan 2019 11:19 PM</h4>
+			<p>Time to dust off the ol' Python book, it's been a few years.  So far, so good.  I got it to print out the header to one of the files as a hex string without issue.</p>
+			<pre>
+[ will@office-workstn : fzi ]
+[ 23:10:22 ]  $ python
+Python 2.7.12 (default, Nov 19 2016, 06:48:10)
+[GCC 5.4.0 20160609] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> file = open ("Unnamed File 000857.fzi", "rb")
+>>> bytes = file.read(8)
+>>> import binascii
+>>> print binascii.hexlify(bytes)
+0701000000000800
+			</pre>
+			<p>Before starting work on a script using this knowledge, I want to first analyze one discrepancy: the first delimiter of the 22-byte segments is more than 22 bytes away from the beginning of the file, not including the header.</p>
+			<p>I started analyzing it, and I'm finding a ton of different distances from one <code>0xE0</code> to the next, with 22 byte distance only occurring twice in 26 steps.  However, there's clearly SOME kind of pattern, with 8 bytes' distance being the most common (including the delimiter), occurring 7 times.  I'm thinking that maybe this could very well be RLE, so we'll see.  The other alternative might be that the header is quite a bit longer than those first 42 bytes, or this could be a metadata segment.  Or, I could be completely wrong, and maybe I got enormously lucky on the first file I analyzed that had it occurring at equidistant points.</p>
+			<p>Before bed, here's the Python script I'll be using.  It will count the distance between each occurrence of <code>0xE0</code> starting from the 42nd byte. (<a href="./simcity/e0count.py">raw</a>):</p>
+			<pre>
+import binascii
+import sys
+
+searchFor = "e0"
+
+offset = 0
+lastOffset = 0
+fileName = sys.argv[1]
+
+with open(fileName, "rb") as f:
+	byte = f.read(1)
+	while byte != "":		
+		if binascii.hexlify(byte) == searchFor:
+			distance = offset - lastOffset
+			print "Delimiter at " + str(lastOffset) + " dec. dist=" + str(distance)
+			lastOffset = offset
+		else:
+			offset += 1
+		byte = f.read(1)
+			</pre>
+			<p>The result indicates that this is probably indeed some kind of RLE because what I originally thought was 22 bytes long segments turns out to be something completely different.</p>
+			<p>There's also still the possibility of something crazy like the whole file being XOR'd against some kind of secret key in the game executable, or an encrypted file body.  I doubt it's that sophisticated, but the possibility can't be ruled out.</p>
+		</div>
+
 		<div class="incremental-update">
 			<h4>Pattern analysis - 12 Jan 2019 10:27 PM</h4>
 			<p>Analysis of each sprite file using HxD indicated the occurrence of a particular byte, <code>0xE0</code>, that took up around 3% of every file, contending with null bytes (<code>0x00</code>) for the #1 most popular byte in the files.</p>
