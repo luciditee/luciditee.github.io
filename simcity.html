@@ -27,7 +27,7 @@
 		<ul>
 			<li>Image data is stored as "FZI" (unknown) file format, of variable length, within the .DAT files. They possess accompanying 8-byte "CZI" (also unknown) files of the same 'name.' Unclear if this is a name assigned by GameExtractor upon read.</li>
 			<li>VBinDiff reveals exactly 42 bytes appear to be the same across the beginning of each file, with minor 8 to 16 byte differences between them, and the file <em>always</em> beginning at the exact same point: 29h offset, or 41 offset decimal.  The final byte of the header is always <code>0xF8</code>, and the first 8 bytes are always <code>07 01 00 00 00 00 08 00</code>.</li>
-			<li>The files are segmented, with segments delimited by the byte <code>0xE0</code>.</li>
+			<li>The files are segmented, with 22 byte segments delimited by the byte <code>0xE0</code>.</li>
 		</ul>
 		<h3>Updates</h3>
 		<div class="incremental-update">
@@ -45,6 +45,7 @@
 			<h4>First impressions - 12 Jan 2019 5:48 PM</h4>
 			<p>I used <a href="https://sourceforge.net/projects/gameextractor/">GameExtractor</a> to retrieve the inner data of the .DAT files that SC3K uses to store its tiles.  I'll be focusing on the landscape tiles since those are predictable and simple, and have a known, well documented shape.</p>
 			<p>Within these .DAT files are two file formats, which GameExtractor identifies as "close zoom image" (CZI) and "far zoom image" (FZI).  All of the CZI files are exactly <em>8 bytes long.</em>  All of the FZI files vary in length, but appear to have a 42 bytes, beginning with hex <code>07 01 00 00 00 00 08 00</code> and ending at byte 29h with a value of <code>0xF8</code> every time.</p>
+			<p><img src="simcity/bindiff-header.png" alt="Binary diff of two sprite files, showing the same 8 bytes leading each file."></p>
 		</div>
 	</body>
 </html>
