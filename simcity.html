@@ -21,18 +21,31 @@
 		<h1>Musings of an airheaded developer</h1>
 		<p><a href="index.html">Return home</a></p>
 		<h2>Reverse engineering the SC3K graphical format</h2>
-		<p>In this space, I will post updates to my efforts to reverse engineering the SimCity 3000 graphical file format, since it does not appear to be openly documented anywhere.  Posts are in descending order, from most to least recent.</p>
+		<p>In this space, I will post updates to my efforts to reverse engineering the SimCity 3000 graphical file format, since it does not appear to be openly documented anywhere.  Posts are in descending order, from most to least recent.  All timestamps are Central US.</p>
 		<hr>
 		<h3>Summary findings (so far)</h3>
 		<ul>
 			<li>Image data is stored as "FZI" (unknown) file format, of variable length, within the .DAT files. They possess accompanying 8-byte "CZI" (also unknown) files of the same 'name.' Unclear if this is a name assigned by GameExtractor upon read.</li>
-			<li>VBinDiff reveals exactly 42 bytes appear to be the same across the beginning of each file, with minor 8 to 16 byte differences between them, and the file *always* beginning at the exact same point: 29h offset, or 41 offset decimal.</li>
+			<li>VBinDiff reveals exactly 42 bytes appear to be the same across the beginning of each file, with minor 8 to 16 byte differences between them, and the file <em>always</em> beginning at the exact same point: 29h offset, or 41 offset decimal.  The final byte of the header is always <code>0xF8</code>, and the first 8 bytes are always <code>07 01 00 00 00 00 08 00</code>.</li>
+			<li>The files are segmented, with segments delimited by the byte <code>0xE0</code>.</li>
 		</ul>
 		<h3>Updates</h3>
 		<div class="incremental-update">
+			<h4>Pattern analysis - 12 Jan 2019 10:27 PM</h4>
+			<p>Analysis of each sprite file using HxD indicated the occurrence of a particular byte, <code>0xE0</code>, that took up around 3% of every file, contending with null bytes (<code>0x00</code>) for the #1 most popular byte in the files.</p>
+			<p>Subtracting each offset where this byte occurs from the previous offset where it occurs yields 22 decimal; therefore these <code>0xE0</code> delimiters are exactly 22 bytes apart each time they occur.  This must indicate some sort of segment in the file, since the segment lengths are always equal.  Whether this byte indicates the beginning or end of a segment remains to be seen.</p>
+			<p>Interestingly enough, these segments
+			<p><img src="simcity/byte-e0.png" alt="Bar graph showing incidence of certain bytes in a file, with a substantial peak at 0xE0"></p>
+			<p>The other, equally noticeable occurrence is <code>0x80</code> seems to be all over the place.  This byte does not appear to have any kind of structure to it as it does not occur at any fixed, discrete interval.  However, it's all over the place&mdash;moreso than <code>0xE0</code>, which indicates to me that it's possibly a color value that occurs a lot.  Having written isometric game engines before, the most common 'color' value that occurs in isometric tiles (once fully fleshed out art is brought in) is <em>transparent.</em></p>
+			<p>However, the idea that this might be the color value that indicates 'transparency' conflicts with the fact that these bytes do not appear close together, at all, ever.  In one case, in the 96th file of the .DAT, an instance of <code>0x80</code> first occurs 28 bytes apart from the last, and then later occurs over 460 bytes apart from the last.  If this is truly some sort of color value, which I do believe it to be since it doesn't occur with any sort of structure, it either 1) just happens to show up a lot in the sprite, or 2) is somehow being obscured using Run-Length Encoding, which Maxis was known to do with their SimCity 2000 (and 3000) save file formats, which derived from Amiga IFF structure.</p>
+			<p>Further supporting the theory is the fact that the game ran in SVGA modes, which means it was not constrained to VGA 256-color (8 bits per pixel) palettes.  Intuitively, one might expect an SVGA game to store things as RGB bitmaps, where you have 8 bytes for red, 8 for green, and 8 for blue, for each pixel color  However, that doesn't make sense if the file is in 22-byte segments, because 22 % 3 = 1, leaving 1 byte behind.</p>
+			<p><em>However</em>, this is a double-edged sword, because that calculation may also include the leading (terminating?) <code>0xE0</code> byte, which would mean it actually very well could be 8 bits per channel color values, or three bytes per pixel, with 7 pixels per segment (7 pixels * 3 channels = 21 bytes + 1 leading/trailing byte = 22 bytes).</p>
+			<p>I think now's the time to try and separate it into segments and analyze what each segment contains, and if it can be used to map to real color values.</p>
+		</div>
+		<div class="incremental-update">
 			<h4>First impressions - 12 Jan 2019 5:48 PM</h4>
 			<p>I used <a href="https://sourceforge.net/projects/gameextractor/">GameExtractor</a> to retrieve the inner data of the .DAT files that SC3K uses to store its tiles.  I'll be focusing on the landscape tiles since those are predictable and simple, and have a known, well documented shape.</p>
-			<p>Within these .DAT files are two file formats, which GameExtractor identifies as "close zoom image" (CZI) and "far zoom image" (FZI).  All of the CZI files are exactly <em>8 bytes long.</em>  All of the FZI files vary in length, but appear to have a 42 bytes, ending at byte 29h with a value of 0xF8 every time.</p>
+			<p>Within these .DAT files are two file formats, which GameExtractor identifies as "close zoom image" (CZI) and "far zoom image" (FZI).  All of the CZI files are exactly <em>8 bytes long.</em>  All of the FZI files vary in length, but appear to have a 42 bytes, beginning with hex <code>07 01 00 00 00 00 08 00</code> and ending at byte 29h with a value of <code>0xF8</code> every time.</p>
 		</div>
 	</body>
 </html>
