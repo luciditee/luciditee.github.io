@@ -70,6 +70,31 @@ with open(fileName, "rb") as f:
 		byte = f.read(1)
 			</pre>
 			<p>The result indicates that this is probably indeed some kind of RLE because what I originally thought was 22 bytes long segments turns out to be something completely different.</p>
+			<pre>
+Delimiter at 0 dec. dist=43
+Delimiter at 43 dec. dist=7
+Delimiter at 50 dec. dist=52
+Delimiter at 102 dec. dist=12
+Delimiter at 114 dec. dist=21
+Delimiter at 135 dec. dist=24
+Delimiter at 159 dec. dist=40
+Delimiter at 199 dec. dist=7
+Delimiter at 206 dec. dist=7
+Delimiter at 213 dec. dist=25
+Delimiter at 238 dec. dist=7
+Delimiter at 245 dec. dist=13
+Delimiter at 258 dec. dist=182
+Delimiter at 440 dec. dist=7
+Delimiter at 447 dec. dist=21
+Delimiter at 468 dec. dist=30
+Delimiter at 498 dec. dist=7
+Delimiter at 505 dec. dist=10
+Delimiter at 515 dec. dist=376
+Delimiter at 891 dec. dist=36
+Delimiter at 927 dec. dist=19
+Delimiter at 946 dec. dist=85
+Delimiter at 1031 dec. dist=61
+			</pre>
 			<p>There's also still the possibility of something crazy like the whole file being XOR'd against some kind of secret key in the game executable, or an encrypted file body.  I doubt it's that sophisticated, but the possibility can't be ruled out.</p>
 		</div>
 
