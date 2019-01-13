@@ -31,7 +31,44 @@
 		</ul>
 		<h3>Updates</h3>
 		<div class="incremental-update">
-			<h4>Greasy python - 12 Jan 2019 11:19 PM</h4>
+			<h4>Run-length encoding? - 13 Jan 2019 00:00 AM</h4>
+			<p>At this point, with prior knowledge of the SC2K save file format (with the same programmers working on 3K) I started analyzing how SC2K's IFF-like save format did its RLE, and speculated to see if this could be applied to these sprite files.  Let's look at David Moews' <a href="http://djm.cc/simcity-2000-info.txt">simcity-2000-info.txt</a>.</p>
+			<pre>
+First of all, SimCity files are in `IFF format', which means that
+they consist of an 12-byte file header followed by a series of segments.
+
+. . .
+
+Each segment has an 8-byte header:
+
+Bytes 1-4: Type of segment
+Byres 5-8: Number of bytes in this segment, except for this 8-byte header
+
+The remaining bytes in each segment are data.
+			</pre>
+			<p>8 byte segments, that sounds familiar.  He later writes that segments are denoted by name, like <code>MISC</code> or <code>XPOP</code> for city population.  Let's see if I can find similarities in the 8-byte segments between <code>0xE0</code> occurrences.</p>
+			<p>Let's look at the 8 byte segment ending at offset 51, and another one ending at offset 255, and then to prevent confirmation bias, we'll find another 8 byte segment in an entirely different file for the third test.<p>
+			<pre>
+			0x002B (43)  : E0 0B 00 01 80 01 09 01
+			0x00FF (255) : E0 02 00 13 00 01 07 4A
+			0x1249 (4689): E0 4D 74 EC 63 21 33 0D
+			</pre>
+			<p>Okay, this seems to demonstrate there <em>probably</em> isn't a pattern between occurrences of <code>0xE0</code>, so let's set that aside for a while.</p>
+			<p>Since 0x80 (decimal 128) also appeared routinely, we'll focus on that.  And, as a matter of fact, it looks like it has some precedent in the SC2K save file format:</p>
+			<pre>
+The data in most SimCity segments is compressed using a form of run-length 
+encoding.  When this is done, the data in the segment consists of a series
+of chunks of two kinds.  The first kind of chunk has first byte from 1 to
+127;  in this case the first byte is a count telling how many data bytes
+follow.  The second kind of chunk has first byte from 129 to 255.  In this
+case, if you subtract 127 from the first byte, you get a count telling how
+many times the following single data byte is repeated.  Chunks with first 
+byte 0 or 128 never seem to occur.
+			</pre>
+			<p>In this case, I think I might have had it backwards.  Perhaps 0x80 is the delimiter and 0xE0 indicates transparency.  We'll find out soon, hopefully, but bedtime comes first.</p>
+		</div>
+		<div class="incremental-update">
+			<h4>Greasy python - 13 Jan 2019 12:34 AM</h4>
 			<p>Time to dust off the ol' Python book, it's been a few years.  So far, so good.  I got it to print out the header to one of the files as a hex string without issue.</p>
 			<pre>
 [ will@office-workstn : fzi ]
@@ -54,46 +91,48 @@ import sys
 
 searchFor = "e0"
 
-offset = 0
+offset = -1
 lastOffset = 0
 fileName = sys.argv[1]
 
 with open(fileName, "rb") as f:
 	byte = f.read(1)
-	while byte != "":		
+	while byte != "":
+		offset += 1	
+		
 		if binascii.hexlify(byte) == searchFor:
 			distance = offset - lastOffset
-			print "Delimiter at " + str(lastOffset) + " dec. dist=" + str(distance)
+			print "Delimiter at " + str(offset) + " dist=" + str(distance)
 			lastOffset = offset
-		else:
-			offset += 1
+			
 		byte = f.read(1)
+
 			</pre>
 			<p>The result indicates that this is probably indeed some kind of RLE because what I originally thought was 22 bytes long segments turns out to be something completely different.</p>
 			<pre>
-Delimiter at 0 dec. dist=43
-Delimiter at 43 dec. dist=7
-Delimiter at 50 dec. dist=52
-Delimiter at 102 dec. dist=12
-Delimiter at 114 dec. dist=21
-Delimiter at 135 dec. dist=24
-Delimiter at 159 dec. dist=40
-Delimiter at 199 dec. dist=7
-Delimiter at 206 dec. dist=7
-Delimiter at 213 dec. dist=25
-Delimiter at 238 dec. dist=7
-Delimiter at 245 dec. dist=13
-Delimiter at 258 dec. dist=182
-Delimiter at 440 dec. dist=7
-Delimiter at 447 dec. dist=21
-Delimiter at 468 dec. dist=30
-Delimiter at 498 dec. dist=7
-Delimiter at 505 dec. dist=10
-Delimiter at 515 dec. dist=376
-Delimiter at 891 dec. dist=36
-Delimiter at 927 dec. dist=19
-Delimiter at 946 dec. dist=85
-Delimiter at 1031 dec. dist=61
+Delimiter at 43 dist=43
+Delimiter at 51 dist=8
+Delimiter at 104 dist=53
+Delimiter at 117 dist=13
+Delimiter at 139 dist=22
+Delimiter at 164 dist=25
+Delimiter at 205 dist=41
+Delimiter at 213 dist=8
+Delimiter at 221 dist=8
+Delimiter at 247 dist=26
+Delimiter at 255 dist=8
+Delimiter at 269 dist=14
+Delimiter at 452 dist=183
+Delimiter at 460 dist=8
+Delimiter at 482 dist=22
+Delimiter at 513 dist=31
+Delimiter at 521 dist=8
+Delimiter at 532 dist=11
+Delimiter at 909 dist=377
+Delimiter at 946 dist=37
+Delimiter at 966 dist=20
+Delimiter at 1052 dist=86
+Delimiter at 1114 dist=62
 			</pre>
 			<p>There's also still the possibility of something crazy like the whole file being XOR'd against some kind of secret key in the game executable, or an encrypted file body.  I doubt it's that sophisticated, but the possibility can't be ruled out.</p>
 		</div>

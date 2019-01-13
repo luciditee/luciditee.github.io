@@ -3,17 +3,18 @@ import sys
 
 searchFor = "e0"
 
-offset = 0
+offset = -1
 lastOffset = 0
 fileName = sys.argv[1]
 
 with open(fileName, "rb") as f:
 	byte = f.read(1)
-	while byte != "":		
+	while byte != "":
+		offset += 1	
+		
 		if binascii.hexlify(byte) == searchFor:
 			distance = offset - lastOffset
-			print "Delimiter at " + str(lastOffset) + " dec. dist=" + str(distance)
+			print "Delimiter at " + str(offset) + " dist=" + str(distance)
 			lastOffset = offset
-		else:
-			offset += 1
+			
 		byte = f.read(1)
